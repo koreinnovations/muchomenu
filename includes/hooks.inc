@@ -8,22 +8,21 @@ function muchomenu_menu() {
   $admin_access = array('administer muchomenu');
 
 
-  $items['admin/structure/menu/muchomenu'] = array(
+  $items['admin/build/menu/muchomenu'] = array(
       'title' => 'muchomenus',
       'page callback' => 'muchomenu_overview_page',
       'access arguments' => $admin_access,
       'file' => 'includes/admin.inc',
-      'type' => MENU_LOCAL_TASK,
       'weight' => -1,
   );
-  $items['admin/structure/menu/muchomenu/list'] = array(
+  $items['admin/build/menu/muchomenu/list'] = array(
       'title' => 'List menus',
       'type' => MENU_DEFAULT_LOCAL_TASK,
       'weight' => -10,
       'file' => 'includes/admin.inc',
       'access arguments' => $admin_access,
   );
-  $items['admin/structure/menu/muchomenu/add'] = array(
+  $items['admin/build/menu/muchomenu/add'] = array(
       'title' => 'Add menu',
       'page callback' => 'drupal_get_form',
       'page arguments' => array('muchomenu_edit_menu', 'add'),
@@ -31,7 +30,7 @@ function muchomenu_menu() {
       'file' => 'includes/admin.inc',
       'access arguments' => $admin_access,
   );
-  $items['admin/structure/menu/muchomenu/settings'] = array(
+  $items['admin/build/menu/muchomenu/settings'] = array(
       'title' => 'Settings',
       'page callback' => 'drupal_get_form',
       'page arguments' => array('muchomenu_configure'),
@@ -40,24 +39,24 @@ function muchomenu_menu() {
       'file' => 'includes/admin.inc',
       'access arguments' => $admin_access,
   );
-
-  $items['admin/structure/menu/muchomenu-customize/%muchomenu'] = array(
+  $items['admin/build/menu/muchomenu-customize/%muchomenu'] = array(
+      'title' => 'Customize menu',
       'page callback' => 'drupal_get_form',
       'page arguments' => array('muchomenu_overview_form', 4),
-      'access arguments' => $admin_access,
-      'file' => 'includes/admin.inc',
       'title callback' => 'muchomenu_overview_title',
       'title arguments' => array(4),
+      'access arguments' => $admin_access,
+      'type' => MENU_CALLBACK,
+      'file' => 'includes/admin.inc',
   );
-
-
-  $items['admin/structure/menu/muchomenu-customize/%muchomenu/list'] = array(
+  $items['admin/build/menu/muchomenu-customize/%muchomenu/list'] = array(
       'title' => 'List items',
       'weight' => -10,
       'type' => MENU_DEFAULT_LOCAL_TASK,
       'file' => 'includes/admin.inc',
+      'access arguments' => $admin_access,
   );
-  $items['admin/structure/menu/muchomenu-customize/%muchomenu/add'] = array(
+  $items['admin/build/menu/muchomenu-customize/%muchomenu/add'] = array(
       'title' => 'Add item',
       'page callback' => 'drupal_get_form',
       'page arguments' => array('muchomenu_edit_item', 'add', NULL, 4),
@@ -65,7 +64,7 @@ function muchomenu_menu() {
       'file' => 'includes/admin.inc',
       'access arguments' => $admin_access,
   );
-  $items['admin/structure/menu/muchomenu-customize/%muchomenu/edit'] = array(
+  $items['admin/build/menu/muchomenu-customize/%muchomenu/edit'] = array(
       'title' => 'Edit menu',
       'page callback' => 'drupal_get_form',
       'page arguments' => array('muchomenu_edit_menu', 'edit', 4),
@@ -73,7 +72,7 @@ function muchomenu_menu() {
       'file' => 'includes/admin.inc',
       'access arguments' => $admin_access,
   );
-  $items['admin/structure/menu/muchomenu-customize/%muchomenu/delete'] = array(
+  $items['admin/build/menu/muchomenu-customize/%muchomenu/delete'] = array(
       'title' => 'Delete menu',
       'page callback' => 'drupal_get_form',
       'page arguments' => array('muchomenu_delete_menu_confirm', 4),
@@ -83,7 +82,7 @@ function muchomenu_menu() {
   );
 
 
-  $items['admin/structure/menu/muchomenu/item/%muchomenu_link/edit'] = array(
+  $items['admin/build/menu/muchomenu/item/%muchomenu_link/edit'] = array(
       'title' => 'Edit menu item',
       'page callback' => 'drupal_get_form',
       'page arguments' => array('muchomenu_edit_item', 'edit', 5, NULL),
@@ -91,7 +90,7 @@ function muchomenu_menu() {
       'access arguments' => $admin_access,
       'file' => 'includes/admin.inc',
   );
-  $items['admin/structure/menu/muchomenu/item/%muchomenu_link/delete'] = array(
+  $items['admin/build/menu/muchomenu/item/%muchomenu_link/delete'] = array(
       'title' => 'Delete menu item',
       'page callback' => 'drupal_get_form',
       'page arguments' => array('muchomenu_item_delete_form', 5),
@@ -104,42 +103,35 @@ function muchomenu_menu() {
 }
 
 /**
- * Implements hook_permission().
+ * Implements hook_perm().
  */
-function muchomenu_permission() {
-  return array(
-      'administer muchomenu' => array(
-          'title' => t('administer muchomenu'),
-          'description' => t('TODO Add a description for \'administer muchomenu\''),
-      ),
-  );
+function muchomenu_perm() {
+  return array('administer muchomenu');
 }
 
 /**
- * Implements hook_block_info().
+ * Implements hook_block().
  */
-function muchomenu_block_info() {
+function muchomenu_block($op = 'list', $delta = 0) {
   $menus = muchomenu_get_menus();
-  $blocks = array();
-  if (!empty($menus)) {
-    foreach ($menus as $id => $title) {
-      $blocks[$id]['info'] = check_plain($title);
-      $blocks[$id]['cache'] = BLOCK_NO_CACHE;
+  if ($op == 'list') {
+    $blocks = array();
+    if (!empty($menus)) {
+      foreach ($menus as $id => $title) {
+        $blocks[$id]['info'] = check_plain($title);
+        $blocks[$id]['cache'] = BLOCK_NO_CACHE;
+      }
     }
+    return $blocks;
   }
-  return $blocks;
-}
-
-/**
- * Implements hook_block_view().
- */
-function muchomenu_block_view($delta) {
-  // $delta represents the menu id
-  $menu = muchomenu_load($delta);
-  $menu_tree = muchomenu_tree_data($delta, FALSE);
-  //$data['subject'] = check_plain($menus[$delta]);
-  $data['content'] = theme('muchomenu_menu_tree', array('menu' => $menu, 'tree' => $menu_tree));
-  return $data;
+  elseif ($op == 'view') {
+    // $delta represents the menu id
+    $menu = muchomenu_load($delta);
+    $menu_tree = muchomenu_tree_data($delta, FALSE);
+    $data['subject'] = check_plain($menus[$delta]);
+    $data['content'] = theme('muchomenu_menu_tree', $menu, $menu_tree);
+    return $data;
+  }
 }
 
 /**
@@ -148,20 +140,19 @@ function muchomenu_block_view($delta) {
 function muchomenu_theme() {
   return array(
       'muchomenu_overview_form' => array(
-          'render element' => 'form',
-          'template' => 'templates/muchomenu-overview-form',
+          'arguments' => array('form' => NULL),
           'file' => 'includes/theme.inc',
       ),
       'muchomenu_item' => array(
-          'variables' => array('item', 'has_children', 'prefix' => '', 'layout' => 'vertical', 'menu' => ''),
+          'arguments' => array('item', 'has_children', 'prefix' => '', 'layout' => 'vertical', 'menu' => ''),
           'file' => 'includes/theme.inc',
       ),
       'muchomenu_tree' => array(
-          'variables' => array('tree' => NULL),
+          'arguments' => array('tree' => NULL),
           'file' => 'includes/theme.inc',
       ),
       'muchomenu_menu_tree' => array(
-          'variables' => array('menu' => NULL, 'tree' => array()),
+          'arguments' => array('menu' => null, 'tree' => array()),
           'file' => 'includes/theme.inc',
       ),
   );

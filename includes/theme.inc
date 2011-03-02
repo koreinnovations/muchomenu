@@ -3,12 +3,7 @@
 /**
  * Generate the HTML output for a muchomenu item
  */
-function theme_muchomenu_item($variables) {
-  $item = $variables['0'];
-  $has_children = $variables['1'];
-  $prefix = $variables['prefix'];
-  $layout = $variables['layout'];
-  $menu = $variables['menu'];
+function theme_muchomenu_item($item, $has_children, $prefix = '', $layout = 'vertical', $menu = '') {
 
   $li_class = ($menu ? 'expanded ' : ($has_children ? 'collapsed ' : 'leaf '));
   $li_class .= $item['class'];
@@ -52,8 +47,7 @@ function theme_muchomenu_item($variables) {
 /**
  * Generate the HTML output for a muchomenu tree
  */
-function theme_muchomenu_tree($variables) {
-  $tree = $variables['tree'];
+function theme_muchomenu_tree($tree) {
   $output = '<ul class="muchomenu">' . $tree . '</ul>';
   return $output;
 }
@@ -83,24 +77,21 @@ function theme_muchomenu_tree($variables) {
  *    HTML markup for a mega menu
  *
  */
-function theme_muchomenu_menu_tree($variables) {
-  $menu = $variables['menu'];
-  $tree = $variables['tree'];
+function theme_muchomenu_menu_tree($menu, $tree) {
   $menu_name = $menu['title'];
 
   $settings = array(
       'animationEffect' => $menu['animation_effect'],
       'animationSpeed' => $menu['animation_speed'],
   );
-  drupal_add_js(array('muchomenu' => $settings), array('type' => 'setting', 'scope' => JS_DEFAULT));
+  drupal_add_js(array('muchomenu' => $settings), 'setting');
 
   $path = drupal_get_path('module', 'muchomenu');
   drupal_add_js("$path/js/muchomenu.js");
   drupal_add_css("$path/css/muchomenu.css");
 
-  $style_path = variable_get('muchomenu_style_path', '');
-  if ($style_path) {
-    drupal_add_css($style_path);
+  if ($style = variable_get('muchomenu_style_path', '')) {
+    drupal_add_css($style);
   }
   else {
     drupal_add_css("$path/css/muchomenu-default-style.css");
@@ -119,17 +110,14 @@ function theme_muchomenu_menu_tree($variables) {
   $count = 0;
   foreach ($tree as $id => $item) {
     $panel_name = $item['link']['panel_name'];
-    $css_id = strtolower('menu-' . preg_replace('/\s+/', '-', preg_replace('/[\',:;!\/"<>.]/', '', strip_tags($item['link']['title']))));
-
     $link_attributes = array(
-        'class' => array($item['link']['class']),
+        'class' => $item['link']['class'],
         'target' => ($item['link']['target']) ? '_blank' : '',
     );
     if ($item['link']['disable_click']) {
-      $link_attributes['class'][] = ' disable-click';
+      $link_attributes['class'] .= ' disable-click';
     }
     $count_attributes = _muchomenu_count_attributes($count, sizeof($tree));
-    $link_attributes['id'] = $css_id;
 
     $output .= sprintf('<li class="muchomenu-parent%s">', $count_attributes);
     $output .= sprintf('<span class="muchomenu-parent-title">%s</span>', l($item['link']['title'], $item['link']['path'], array('attributes' => $link_attributes)));
@@ -154,22 +142,22 @@ function theme_muchomenu_menu_tree($variables) {
 /**
  * Theme the menu overview form into a table.
  */
-function template_preprocess_muchomenu_overview_form(&$variables) {
+function theme_muchomenu_overview_form($form) {
   drupal_add_tabledrag('menu-overview', 'order', 'sibling', 'menu-weight');
 
   $header = array(
       t('Menu item'),
-      array('data' => t('Enabled'), 'class' => array('checkbox')),
-      array('data' => t('New Window'), 'class' => array('checkbox')),
-      array('data' => t('Disable Click'), 'class' => array('checkbox')),
+      array('data' => t('Enabled'), 'class' => 'checkbox'),
+      array('data' => t('New Window'), 'class' => 'checkbox'),
+      array('data' => t('Disable Click'), 'class' => 'checkbox'),
       t('Weight'),
       array('data' => t('Operations'), 'colspan' => '3'),
   );
 
   $rows = array();
-  foreach (element_children($variables['form']) as $id) {
-    if (isset($variables['form'][$id]['enabled'])) {
-      $element = &$variables['form'][$id];
+  foreach (element_children($form) as $id) {
+    if (isset($form[$id]['enabled'])) {
+      $element = &$form[$id];
       // Build a list of operations.
       $operations = array();
       foreach (element_children($element['operations']) as $op) {
@@ -180,31 +168,29 @@ function template_preprocess_muchomenu_overview_form(&$variables) {
       }
 
       // Add special classes to be used for tabledrag.js.
-      $element['id']['#attributes']['class'] = array('menu-id');
-      $element['weight']['#attributes']['class'] = array('menu-weight');
+      $element['id']['#attributes']['class'] = 'menu-id';
+      $element['weight']['#attributes']['class'] = 'menu-weight';
 
       // Change the parent field to a hidden. This allows any value but hides the field.
       $element['menu_id']['#type'] = 'hidden';
 
       $row = array();
-      $row[] = theme('indentation', array('size' => $element['#item']['depth'])) . drupal_render($element['title']);
-      $row[] = array('data' => drupal_render($element['enabled']), 'class' => array('checkbox'));
-      $row[] = array('data' => drupal_render($element['target']), 'class' => array('checkbox'));
-      $row[] = array('data' => drupal_render($element['disable_click']), 'class' => array('checkbox'));
+      $row[] = theme('indentation', $element['#item']['depth']) . drupal_render($element['title']);
+      $row[] = array('data' => drupal_render($element['enabled']), 'class' => 'checkbox');
+      $row[] = array('data' => drupal_render($element['target']), 'class' => 'checkbox');
+      $row[] = array('data' => drupal_render($element['disable_click']), 'class' => 'checkbox');
       $row[] = drupal_render($element['weight']) . drupal_render($element['menu_id']) . drupal_render($element['id']);
       $row = array_merge($row, $operations);
 
       $row = array_merge(array('data' => $row), $element['#attributes']);
-      $row['class'][] = 'draggable';
+      $row['class'] = !empty($row['class']) ? $row['class'] . ' draggable' : 'draggable';
       $rows[] = $row;
-    } else {
-      $variables['extra_fields'] .= drupal_render($variables['form'][$id]);
     }
   }
-
+  $output = '';
   if ($rows) {
-    $variables['table'] = theme('table', array('header' => $header, 'rows' => $rows, 'attributes' => array('id' => 'menu-overview')));
+    $output .= theme('table', $header, $rows, array('id' => 'menu-overview'));
   }
-
-  //$variables['table'] .= drupal_render($variables['form']);
+  $output .= drupal_render($form);
+  return $output;
 }

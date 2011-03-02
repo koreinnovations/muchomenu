@@ -12,13 +12,13 @@
  */
 function muchomenu_overview_page() {
   $sql = "SELECT id, title, description FROM {muchomenu_menus} ORDER BY title;";
-  $result = db_query($sql);
+  $result = db_query($sql, 0);
   $content = array();
-  foreach ($result as $menu) {
-    $menu->href = 'admin/structure/menu/muchomenu-customize/' . $menu->id;
-    $menu->localized_options = array();
-    $menu->description = filter_xss_admin($menu->description);
-    $content[] = (array) $menu;
+  while ($menu = db_fetch_array($result)) {
+    $menu['href'] = 'admin/build/menu/muchomenu-customize/' . $menu['id'];
+    $menu['localized_options'] = array();
+    $menu['description'] = filter_xss_admin($menu['description']);
+    $content[] = $menu;
   }
   if (empty($content)) {
     $content[] = array(
@@ -26,7 +26,7 @@ function muchomenu_overview_page() {
         'localized_options' => array()
     );
   }
-  return theme('admin_block_content', array('content' => $content));
+  return theme('admin_block_content', $content);
 }
 
 /**
@@ -41,22 +41,18 @@ function muchomenu_overview_title($menu) {
  *
  * Shows for one menu the muchomenu items and relevant operations.
  */
-function muchomenu_overview_form($form, &$form_state, $menu = array()) {
+function muchomenu_overview_form(&$form_state, $menu) {
   $tree = muchomenu_tree_data($menu['id']);
-  $form = array_merge($form, _muchomenu_overview_tree_form($tree));
+  $form = _muchomenu_overview_tree_form($tree);
   $form['#menu'] = $menu;
-
-
   if (element_children($form)) {
     $form['submit'] = array(
         '#type' => 'submit',
         '#value' => t('Save configuration'),
     );
-  }
-  else {
+  } else {
     $form['empty_menu'] = array('#value' => t('There are no muchomenu items yet.'));
   }
-
   return $form;
 }
 
@@ -65,15 +61,14 @@ function muchomenu_overview_form($form, &$form_state, $menu = array()) {
  */
 function _muchomenu_overview_tree_form($tree) {
   static $form = array('#tree' => TRUE);
-
   foreach ($tree as $data) {
     $title = '';
     $item = $data['link'];
     if ($item) {
       $id = 'id:' . $item['id'];
       $form[$id]['#item'] = $item;
-      $form[$id]['#attributes']['class'] = (!$item['enabled']) ? array('menu-disabled') : array('menu-enabled');
-      $form[$id]['title']['#markup'] = l($item['title'], $item['path']) . (!$item['enabled'] ? ' (' . t('disabled') . ')' : '');
+      $form[$id]['#attributes'] = (!$item['enabled']) ? array('class' => 'menu-disabled') : array('class' => 'menu-enabled');
+      $form[$id]['title']['#value'] = l($item['title'], $item['path']) . (!$item['enabled'] ? ' (' . t('disabled') . ')' : '');
       $form[$id]['enabled'] = array(
           '#type' => 'checkbox',
           '#default_value' => $item['enabled'],
@@ -97,18 +92,18 @@ function _muchomenu_overview_tree_form($tree) {
           '#value' => $item['id'],
       );
       $form[$id]['menu_id'] = array(
-          '#type' => 'hidden',
+          '#type' => 'textfield',
           '#default_value' => isset($form_state[$id]['menu_id']) ? $form_state[$id]['menu_id'] : $item['menu_id'],
           '#size' => 6,
       );
       // Build a list of operations.
       $operations = array();
-      $operations['edit'] = l(t('edit'), 'admin/structure/menu/muchomenu/item/' . $item['id'] . '/edit');
-      $operations['delete'] = l(t('delete'), 'admin/structure/menu/muchomenu/item/' . $item['id'] . '/delete');
+      $operations['edit'] = l(t('edit'), 'admin/build/menu/muchomenu/item/' . $item['id'] . '/edit');
+      $operations['delete'] = l(t('delete'), 'admin/build/menu/muchomenu/item/' . $item['id'] . '/delete');
 
       $form[$id]['operations'] = array();
       foreach ($operations as $op => $value) {
-        $form[$id]['operations'][$op] = array('#markup' => $value);
+        $form[$id]['operations'][$op] = array('#value' => $value);
       }
     }
 
@@ -123,9 +118,13 @@ function _muchomenu_overview_tree_form($tree) {
  * Submit handler for the menu overview form.
  */
 function muchomenu_overview_form_submit($form, &$form_state) {
+  //
+  $order = array_flip(array_keys($form['#post'])); // Get the $_POST order.
+  $form = array_merge($order, $form); // Update our original form with the new order.
+
   $updated_items = array();
   $fields = array('enabled', 'type', 'weight', 'menu_id', 'target', 'disable_click');
-  foreach ($form_state['values'] as $id => $value) {
+  foreach (element_children($form) as $id) {
     if (isset($form[$id]['#item'])) {
       $element = $form[$id];
       // Update any fields that have changed in this menu item.
@@ -137,35 +136,17 @@ function muchomenu_overview_form_submit($form, &$form_state) {
       }
     }
   }
-
   // Save all our changed items to the database.
   foreach ($updated_items as $item) {
-    // TODO Please review the conversion of this statement to the D7 database API syntax.
-    /* db_query("
-     *    UPDATE {muchomenu_items} SET 
-     *    menu_id = %d, enabled = %d, weight = %d, target = %d, disable_click = %d
-     *    WHERE id = %d
-     * ",
-     *  $item['menu_id'], $item['enabled'], $item['weight'],
-     *  $item['target'], $item['disable_click'], $item['id'])
-     */
-    db_update('muchomenu_items')
-            ->fields(array(
-                'menu_id' => $item['menu_id'],
-                'enabled' => $item['enabled'],
-                'weight' => $item['weight'],
-                'target' => $item['target'],
-                'disable_click' => $item['disable_click'],
-            ))
-            ->condition('id', $item['id'])
-            ->execute();
+    db_query("UPDATE {muchomenu_items} SET menu_id = %d, enabled = %d, weight = %d, target = %d, disable_click = %d WHERE id = %d",
+            $item['menu_id'], $item['enabled'], $item['weight'], $item['target'], $item['disable_click'], $item['id']);
   }
 }
 
 /**
  * Menu callback; Build the form that handles the adding/editing of a custom menu.
  */
-function muchomenu_edit_menu($form, &$form_state, $type, $menu = array()) {
+function muchomenu_edit_menu(&$form_state, $type, $menu = array()) {
   if ($type == 'edit') {
     $form['id'] = array('#type' => 'value', '#value' => $menu['id']);
     $form['#insert'] = FALSE;
@@ -175,8 +156,7 @@ function muchomenu_edit_menu($form, &$form_state, $type, $menu = array()) {
         '#submit' => array('muchomenu_delete_menu_submit'),
         '#weight' => 10,
     );
-  }
-  else {
+  } else {
     $menu = array('title' => '', 'description' => '', 'orientation' => 'horizontal');
     $form['#insert'] = TRUE;
   }
@@ -239,13 +219,12 @@ function muchomenu_edit_menu($form, &$form_state, $type, $menu = array()) {
  */
 function muchomenu_edit_menu_submit($form, &$form_state) {
   $menu = $form_state['values'];
-  $path = 'admin/structure/menu/muchomenu-customize/';
+  $path = 'admin/build/menu/muchomenu-customize/';
 
   if ($form['#insert']) {
     $obj = new stdClass();
-    $key = NULL;
-  }
-  else {
+    $key = null;
+  } else {
     $obj = (object) muchomenu_load($menu['id']);
     $key = 'id';
   }
@@ -258,9 +237,8 @@ function muchomenu_edit_menu_submit($form, &$form_state) {
 
   drupal_write_record('muchomenu_menus', $obj, $key);
 
-  if ($form['#insert']) {
+  if ($form['#insert'])
     $menu['id'] = $obj->id;
-  }
 
   $form_state['redirect'] = $path . $menu['id'];
 }
@@ -269,16 +247,16 @@ function muchomenu_edit_menu_submit($form, &$form_state) {
  * Submit function for the 'Delete' button on the menu editing form.
  */
 function muchomenu_delete_menu_submit($form, &$form_state) {
-  $form_state['redirect'] = 'admin/structure/menu/muchomenu-customize/' . $form_state['values']['id'] . '/delete';
+  $form_state['redirect'] = 'admin/build/menu/muchomenu-customize/' . $form_state['values']['id'] . '/delete';
 }
 
 /**
  * Build a confirm form for deletion of a custom menu.
  */
-function muchomenu_delete_menu_confirm($form, &$form_state, $menu) {
+function muchomenu_delete_menu_confirm(&$form_state, $menu) {
   $form['#menu'] = $menu;
   $caption = '<p>' . t('This action cannot be undone.') . '</p>';
-  return confirm_form($form, t('Are you sure you want to delete the muchomenu %title?', array('%title' => $menu['title'])), 'admin/structure/menu/muchomenu-customize/' . $menu['id'], $caption, t('Delete'));
+  return confirm_form($form, t('Are you sure you want to delete the muchomenu %title?', array('%title' => $menu['title'])), 'admin/build/menu/muchomenu-customize/' . $menu['id'], $caption, t('Delete'));
 }
 
 /**
@@ -286,33 +264,26 @@ function muchomenu_delete_menu_confirm($form, &$form_state, $menu) {
  */
 function muchomenu_delete_menu_confirm_submit($form, &$form_state) {
   $menu = $form['#menu'];
-  $form_state['redirect'] = 'admin/structure/menu/muchomenu';
+  $form_state['redirect'] = 'admin/build/menu/muchomenu';
   $menu_id = $menu['id'];
   $items = muchomenu_get_items_by_menu($menu_id);
   if ($items) {
     foreach ($items as $item) {
-      // TODO Please review the conversion of this statement to the D7 database API syntax.
-      /* db_query('DELETE FROM {muchomenu_items} WHERE id = %d', $item['id']) */
-      db_delete('muchomenu_items')
-              ->condition('id', $item['id'])
-              ->execute();
+      db_query('DELETE FROM {muchomenu_items} WHERE id = %d', $item['id']);
     }
   }
-  // TODO Please review the conversion of this statement to the D7 database API syntax.
-  /* db_query('DELETE FROM {muchomenu_menus} WHERE id = %d', $menu_id) */
-  db_delete('muchomenu_menus')
-          ->condition('id', $menu_id)
-          ->execute();
+  db_query('DELETE FROM {muchomenu_menus} WHERE id = %d', $menu_id);
 
   cache_clear_all();
-  drupal_set_message(t('The menu %title and all its menu items have been deleted.', array('%title' => $menu['title'])));
-  watchdog('muchomenu', 'Deleted menu %title and all its menu items.', array('%title' => $menu['title']), WATCHDOG_NOTICE);
+  $t_args = array('%title' => $menu['title']);
+  drupal_set_message(t('The menu %title and all its menu items have been deleted.', $t_args));
+  watchdog('muchomenu', 'Deleted menu %title and all its menu items.', $t_args, WATCHDOG_NOTICE);
 }
 
 /**
  * Menu callback; Build the menu link editing form.
  */
-function muchomenu_edit_item($form, &$form_state, $type, $item, $menu) {
+function muchomenu_edit_item(&$form_state, $type, $item, $menu) {
   if ($type == 'add' || empty($item)) {
     $menu_id = isset($menu['id']) ? $menu['id'] : 0;
   }
@@ -334,7 +305,7 @@ function muchomenu_edit_item($form, &$form_state, $type, $item, $menu) {
       '#collapsible' => FALSE,
       '#tree' => TRUE,
       '#weight' => -2,
-      '#attributes' => array('class' => array('menu-item-form')),
+      '#attributes' => array('class' => 'menu-item-form'),
       '#item' => $item,
   );
   if ($type == 'add' || empty($item)) {
@@ -440,69 +411,39 @@ function muchomenu_edit_item_submit($form, &$form_state) {
     $item['path'] = '<front>';
   }
 
-  foreach (array('enabled', 'target', 'disable_click') as $key) {
+  foreach(array('enabled', 'target', 'disable_click') as $key) {
     $item[$key] = ($item[$key]) ? 1 : 0;
   }
 
   if (!$item['id']) {
-    // TODO Please review the conversion of this statement to the D7 database API syntax.
-    /* db_query("INSERT INTO {muchomenu_items} (menu_id, path, panel_name, title, alt, weight, enabled, target, disable_click) VALUES (%d, '%s', '%s', '%s', '%s', %d, %d, %d, %d)", $item['menu_id'], $item['path'], $item['panel_name'], $item['title'], $item['alt'], $item['weight'], $item['enabled'], $item['target'], $item['disable_click']) */
-    $id = db_insert('muchomenu_items')
-                    ->fields(array(
-                        'menu_id' => $item['menu_id'],
-                        'path' => $item['path'],
-                        'panel_name' => $item['panel_name'],
-                        'title' => $item['title'],
-                        'alt' => $item['alt'],
-                        'weight' => $item['weight'],
-                        'enabled' => $item['enabled'],
-                        'target' => $item['target'],
-                        'disable_click' => $item['disable_click'],
-                    ))
-                    ->execute();
+    db_query("INSERT INTO {muchomenu_items} (menu_id, path, panel_name, title, alt, weight, enabled, target, disable_click) VALUES (%d, '%s', '%s', '%s', '%s', %d, %d, %d, %d)", $item['menu_id'], $item['path'], $item['panel_name'], $item['title'], $item['alt'], $item['weight'], $item['enabled'], $item['target'], $item['disable_click']);
     drupal_set_message(t('Menu item successfully added.'));
     $t_args = array('%title' => $item['title']);
     watchdog('muchomenu', 'Added new muchomenu menu item %title', $t_args, WATCHDOG_NOTICE);
-  }
-  else {
-    // TODO Please review the conversion of this statement to the D7 database API syntax.
-    /* db_query("UPDATE {muchomenu_items} SET menu_id = %d, path = '%s', panel_name = '%s', title = '%s', alt = '%s', weight = %d, enabled = %d, target = %d, disable_click = %d WHERE id = %d", $item['menu_id'], $item['path'], $item['panel_name'], $item['title'], $item['alt'], $item['weight'], $item['enabled'], $item['target'], $item['disable_click'], $item['id']) */
-    db_update('muchomenu_items')
-            ->fields(array(
-                'menu_id' => $item['menu_id'],
-                'path' => $item['path'],
-                'panel_name' => $item['panel_name'],
-                'title' => $item['title'],
-                'alt' => $item['alt'],
-                'weight' => $item['weight'],
-                'enabled' => $item['enabled'],
-                'target' => $item['target'],
-                'disable_click' => $item['disable_click'],
-            ))
-            ->condition('id', $item['id'])
-            ->execute();
+  } else {
+    db_query("UPDATE {muchomenu_items} SET menu_id = %d, path = '%s', panel_name = '%s', title = '%s', alt = '%s', weight = %d, enabled = %d, target = %d, disable_click = %d WHERE id = %d", $item['menu_id'], $item['path'], $item['panel_name'], $item['title'], $item['alt'], $item['weight'], $item['enabled'], $item['target'], $item['disable_click'], $item['id']);
     drupal_set_message(t('Menu item successfully updated.'));
     $t_args = array('%title' => $item['title']);
     watchdog('muchomenu', 'Updated muchomenu menu item %title', $t_args, WATCHDOG_NOTICE);
   }
 
-  $form_state['redirect'] = 'admin/structure/menu/muchomenu-customize/' . $item['menu_id'];
+  $form_state['redirect'] = 'admin/build/menu/muchomenu-customize/' . $item['menu_id'];
 }
 
 /**
  * Submit function for the delete button on the menu item editing form.
  */
 function muchomenu_item_delete_submit($form, &$form_state) {
-  $form_state['redirect'] = 'admin/structure/menu/muchomenu/item/' . $form_state['values']['menu']['id'] . '/delete';
+  $form_state['redirect'] = 'admin/build/menu/muchomenu/item/' . $form_state['values']['menu']['id'] . '/delete';
 }
 
 /**
  * Build a confirm form for deletion of a single menu link.
  */
-function muchomenu_item_delete_form($form, &$form_state, $item) {
+function muchomenu_item_delete_form(&$form_state, $item) {
   $form['#item'] = $item;
   $menu_id = muchomenu_item_get_menu_id($item);
-  return confirm_form($form, t('Are you sure you want to delete the muchomenu item %item?', array('%item' => $item['title'])), 'admin/structure/menu/muchomenu-customize/' . $menu_id);
+  return confirm_form($form, t('Are you sure you want to delete the muchomenu item %item?', array('%item' => $item['title'])), 'admin/build/menu/muchomenu-customize/' . $menu_id);
 }
 
 /**
@@ -511,20 +452,17 @@ function muchomenu_item_delete_form($form, &$form_state, $item) {
 function muchomenu_item_delete_form_submit($form, &$form_state) {
   $item = $form['#item'];
   $menu_id = muchomenu_item_get_menu_id($item);
-  // TODO Please review the conversion of this statement to the D7 database API syntax.
-  /* db_query('DELETE FROM {muchomenu_items} WHERE id = %d', $item['id']) */
-  db_delete('muchomenu_items')
-          ->condition('id', $item['id'])
-          ->execute();
-  drupal_set_message(t('The muchomenu item %title has been deleted.', array('%title' => $item['title'])));
-  watchdog('menu', 'Deleted muchomenu item %title.', array('%title' => $item['title']), WATCHDOG_NOTICE);
-  $form_state['redirect'] = 'admin/structure/menu/muchomenu-customize/' . $menu_id;
+  db_query('DELETE FROM {muchomenu_items} WHERE id = %d', $item['id']);
+  $t_args = array('%title' => $item['title']);
+  drupal_set_message(t('The muchomenu item %title has been deleted.', $t_args));
+  watchdog('menu', 'Deleted muchomenu item %title.', $t_args, WATCHDOG_NOTICE);
+  $form_state['redirect'] = 'admin/build/menu/muchomenu-customize/' . $menu_id;
 }
 
 /**
  * Menu callback; Build the form presenting menu configuration options.
  */
-function muchomenu_configure($form, &$form_state) {
+function muchomenu_configure() {
   $form = array();
 
   $form['muchomenu_style_path'] = array(

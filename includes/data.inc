@@ -4,29 +4,26 @@
  * Load the data for a single menu.
  */
 function muchomenu_load($id) {
+  $id = (int) $id;
   if (!is_numeric($id) || !muchomenu_exists($id)) {
     return FALSE;
   }
-
-  $result = db_query("SELECT * FROM {muchomenu_menus} WHERE id = :id", array(':id' => $id));
-  return $result->fetchAssoc();
+  return db_fetch_array(db_query("SELECT * FROM {muchomenu_menus} WHERE id = %d", (int) $id));
 }
 
 /**
  * Load the data for a single menu item.
  */
 function muchomenu_link_load($id) {
-  $result = db_query("SELECT * FROM {muchomenu_items} WHERE id = :id", array(':id' => $id));
-  return $result->fetchAssoc();
+  return db_fetch_array(db_query("SELECT * FROM {muchomenu_items} WHERE id = %d", $id));
 }
 
 /**
  * Return an array of mucho menus defined in our data table
  */
 function muchomenu_get_menus() {
-  $output = array();
-  $result = db_query('SELECT id, title FROM {muchomenu_menus} ORDER BY title');
-  foreach ($result as $menu) {
+  $query = db_query('SELECT id, title FROM {muchomenu_menus} ORDER BY title', 0);
+  while ($menu = db_fetch_object($query)) {
     $output[$menu->id] = $menu->title;
   }
   return $output;
@@ -37,9 +34,9 @@ function muchomenu_get_menus() {
  */
 function muchomenu_get_items_by_menu($id) {
   $items = array();
-  $result = db_query("SELECT * FROM {muchomenu_items} WHERE menu_id = :menu_id ORDER BY weight, title", array(':menu_id' => (int) $id));
-  foreach ($result as $item) {
-    $items[] = (array) $item;
+  $query = db_query("SELECT * FROM {muchomenu_items} WHERE menu_id = %d ORDER BY weight, title", (int) $id);
+  while ($item = db_fetch_array($query)) {
+    $items[] = $item;
   }
   return $items;
 }
@@ -48,10 +45,9 @@ function muchomenu_get_items_by_menu($id) {
  * Returns TRUE if menu with given menu id exists.
  */
 function muchomenu_exists($id) {
-  if (!$id) {
+  if (!$id)
     return FALSE;
-  }
-  $count = db_query('SELECT COUNT(*) FROM {muchomenu_menus} WHERE id = :id', array(':id' => (int) $id))->fetchField();
+  $count = db_result(db_query('SELECT COUNT(*) FROM {muchomenu_menus} WHERE id = %d', (int) $id));
   return ($count > 0);
 }
 
@@ -59,7 +55,7 @@ function muchomenu_exists($id) {
  * Finds the menu ID corresponding to a menu item
  */
 function muchomenu_item_get_menu_id($item) {
-  $menu_id = db_query('SELECT menu_id FROM {muchomenu_items} WHERE id = :id', array(':id' => $item['id']))->fetchField();
+  $menu_id = db_result(db_query('SELECT menu_id FROM {muchomenu_items} WHERE id = %d', $item['id']));
   return $menu_id;
 }
 
@@ -67,10 +63,6 @@ function muchomenu_item_get_menu_id($item) {
  * Invoked by _menu_tree_data
  */
 
-/**
- * @todo Please document this function.
- * @see http://drupal.org/node/1354
- */
 function muchomenu_fetch_rows($id = 0, $full = FALSE, $depth = 0, $output = array()) {
   $entries = muchomenu_return_row($id, $depth);
   $depth++;
@@ -86,14 +78,10 @@ function muchomenu_fetch_rows($id = 0, $full = FALSE, $depth = 0, $output = arra
  * Helper function. Invoked exclusively by muchomenu_fetch_rows.
  */
 
-/**
- * @todo Please document this function.
- * @see http://drupal.org/node/1354
- */
 function muchomenu_return_row($id, $depth = 0) {
   $output = array();
-  $result = db_query('SELECT * FROM {muchomenu_items} WHERE menu_id = :menu_id ORDER BY weight, title', array(':menu_id' => $id));
-  foreach ($result as $item) {
+  $query = db_query('SELECT * FROM {muchomenu_items} WHERE menu_id = %d ORDER BY weight, title', $id);
+  while ($item = db_fetch_object($query)) {
     $output[$item->id] = array(
         'id' => $item->id,
         'menu_id' => $item->menu_id,
@@ -200,7 +188,7 @@ function _muchomenu_prune_tree(&$tree) {
       $branch['link']['class'] .= " first";
     }
     $branch['link']['class'] .= $n % 2 ? ' odd' : ' even';
-    if (!muchomenu_has_access_to_path($branch['link']['path'])) {
+    if (!muchomenu_check_path_access($branch['link']['path'])) {
       unset($tree[$key]);
     }
     else {
@@ -213,4 +201,5 @@ function _muchomenu_prune_tree(&$tree) {
     }
     $n++;
   }
+  return $has_children;
 }

@@ -3,21 +3,18 @@
 /**
  * Check path access (taken from menu_valid_path)
  */
-function muchomenu_has_access_to_path($path) {
-  global $_muchomenu_menu_admin;
+function muchomenu_check_path_access($path) {
+  global $menu_admin;
   $item = array();
 
   // We indicate that a menu administrator is running the menu access check.
-  $_muchomenu_menu_admin = TRUE;
-  if ($path == '<front>' || url_is_external($path)) {
+  $menu_admin = TRUE;
+  if ($path == '<front>' || menu_path_is_external($path)) {
     return TRUE;
   }
   elseif (preg_match('/\/\%/', $path)) {
     // Path is dynamic (ie 'user/%'), so check directly against menu_router table.
-
-    $result = db_query("SELECT * FROM {menu_router} where path = '%s' ", $path);
-    $item = $result->fetchAssoc();
-    if ($item) {
+    if ($item = db_fetch_array(db_query("SELECT * FROM {menu_router} where path = '%s' ", $path))) {
       $item['link_path'] = $form_item['link_path'];
       $item['link_title'] = $form_item['link_title'];
       $item['external'] = FALSE;
@@ -28,13 +25,11 @@ function muchomenu_has_access_to_path($path) {
   else {
     $item = menu_get_item($path);
   }
-  $_muchomenu_menu_admin = FALSE;
-  if ($item['access'] === FALSE) {
+  $menu_admin = FALSE;
+  if ($item['access'] === FALSE)
     return FALSE;
-  }
-  else {
+  else
     return TRUE;
-  }
 }
 
 /**
@@ -59,7 +54,7 @@ function _muchomenu_count_attributes($position, $total_count) {
   if ($position == 0) {
     $order = ' first';
   }
-  elseif ($position == $total_count - 1) {
+  else if ($position == $total_count - 1) {
     $order = ' last';
   }
   else {
@@ -87,11 +82,11 @@ function muchomenu_build_output($menus, $layout) {
   foreach ($menus as $menu) {
     $has_children = empty($menu['link']['has_children']) ? 0 : $menu['link']['has_children'];
     if ($menu['below']) {
-      $output .= theme('muchomenu_item', array('0' => $menu['link'], '1' => $has_children, 'prefix' => $id, 'layout' => $layout, 'menu' => muchomenu_build_output($menu['below'], $layout)));
+      $output .= theme('muchomenu_item', $menu['link'], $has_children, $id, $layout, muchomenu_build_output($menu['below'], $layout));
     }
     else {
-      $output .= theme('muchomenu_item', array('0' => $menu['link'], '1' => $has_children, 'prefix' => $id, 'layout' => $layout, 'menu' => ''));
+      $output .= theme('muchomenu_item', $menu['link'], $has_children, $id, $layout, '');
     }
   }
-  return $output ? theme('muchomenu_tree', array('tree' => $output)) : '';
+  return $output ? theme('muchomenu_tree', $output) : '';
 }

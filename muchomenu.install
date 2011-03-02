@@ -2,7 +2,7 @@
 
 /**
  * @file
- *
+ * 
  * Install file for the muchomenu module
  */
 
@@ -141,8 +141,7 @@ function muchomenu_schema() {
  */
 function muchomenu_install() {
   // Create muchomenu tables.
-  // TODO The drupal_(un)install_schema functions are called automatically in D7.
-  // drupal_install_schema('muchomenu')
+  drupal_install_schema('muchomenu');
 }
 
 /**
@@ -150,6 +149,5 @@ function muchomenu_install() {
  */
 function muchomenu_uninstall() {
   // Delete muchomenu tables.
-  // TODO The drupal_(un)install_schema functions are called automatically in D7.
-  // drupal_uninstall_schema('muchomenu')
+  drupal_uninstall_schema('muchomenu');
 }

@@ -1,14 +1,6 @@
 name = MuchoMenu
 description = Enables "mega menus" functionality in Drupal
-core = 7.x
+core = 6.x
 
 dependencies[] = ctools
 dependencies[] = panels_mini
-
-files[] = muchomenu.install
-files[] = muchomenu.module
-files[] = includes/admin.inc
-files[] = includes/data.inc
-files[] = includes/hooks.inc
-files[] = includes/theme.inc
-files[] = includes/util.inc
