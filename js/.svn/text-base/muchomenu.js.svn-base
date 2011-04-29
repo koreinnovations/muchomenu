@@ -53,9 +53,7 @@ Drupal.behaviors.muchomenu = function(context) {
       /* display position */
       //hoverBin.css('top', 'auto');
       /* display position end */
-      if (hoverBin.length > 0) {
-        animateIn(hoverBin);
-      }
+      animateIn(hoverBin);
     }
   }
 	
@@ -76,13 +74,12 @@ Drupal.behaviors.muchomenu = function(context) {
     var itemPosition = item.position();
     var padding = 30;
 
-	if (itemPosition != null && itemPosition != undefined) {
-      var p = item.width() + itemPosition.left + parentOffset.left + padding;
-      if (p > screenWidth) {
-        var newOffset = screenWidth - p;
-        item.css('left', newOffset + 'px');
-      }
-	}
+    var p = item.width() + itemPosition.left + parentOffset.left + padding;
+    if (p > screenWidth) {
+      var newOffset = screenWidth - p;
+      item.css('left', newOffset + 'px');
+    }
+
   }
 
   function animateIn(item) {
