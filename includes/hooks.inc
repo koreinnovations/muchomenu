@@ -9,7 +9,7 @@ function muchomenu_menu() {
 
 
   $items['admin/structure/menu/muchomenu'] = array(
-      'title' => 'muchomenus',
+      'title' => 'MuchoMenus',
       'page callback' => 'muchomenu_overview_page',
       'access arguments' => $admin_access,
       'file' => 'includes/admin.inc',
@@ -41,42 +41,42 @@ function muchomenu_menu() {
       'access arguments' => $admin_access,
   );
 
-  $items['admin/structure/menu/muchomenu-customize/%muchomenu'] = array(
+  $items['admin/structure/menu/muchomenu/muchomenu-customize/%muchomenu'] = array(
       'page callback' => 'drupal_get_form',
-      'page arguments' => array('muchomenu_overview_form', 4),
+      'page arguments' => array('muchomenu_overview_form', 5),
       'access arguments' => $admin_access,
       'file' => 'includes/admin.inc',
       'title callback' => 'muchomenu_overview_title',
-      'title arguments' => array(4),
+      'title arguments' => array(5),
   );
 
 
-  $items['admin/structure/menu/muchomenu-customize/%muchomenu/list'] = array(
+  $items['admin/structure/menu/muchomenu/muchomenu-customize/%muchomenu/list'] = array(
       'title' => 'List items',
       'weight' => -10,
       'type' => MENU_DEFAULT_LOCAL_TASK,
       'file' => 'includes/admin.inc',
   );
-  $items['admin/structure/menu/muchomenu-customize/%muchomenu/add'] = array(
+  $items['admin/structure/menu/muchomenu/muchomenu-customize/%muchomenu/add'] = array(
       'title' => 'Add item',
       'page callback' => 'drupal_get_form',
-      'page arguments' => array('muchomenu_edit_item', 'add', NULL, 4),
+      'page arguments' => array('muchomenu_edit_item', 'add', NULL, 5),
       'type' => MENU_LOCAL_TASK,
       'file' => 'includes/admin.inc',
       'access arguments' => $admin_access,
   );
-  $items['admin/structure/menu/muchomenu-customize/%muchomenu/edit'] = array(
+  $items['admin/structure/menu/muchomenu/muchomenu-customize/%muchomenu/edit'] = array(
       'title' => 'Edit menu',
       'page callback' => 'drupal_get_form',
-      'page arguments' => array('muchomenu_edit_menu', 'edit', 4),
+      'page arguments' => array('muchomenu_edit_menu', 'edit', 5),
       'type' => MENU_LOCAL_TASK,
       'file' => 'includes/admin.inc',
       'access arguments' => $admin_access,
   );
-  $items['admin/structure/menu/muchomenu-customize/%muchomenu/delete'] = array(
+  $items['admin/structure/menu/muchomenu/muchomenu-customize/%muchomenu/delete'] = array(
       'title' => 'Delete menu',
       'page callback' => 'drupal_get_form',
-      'page arguments' => array('muchomenu_delete_menu_confirm', 4),
+      'page arguments' => array('muchomenu_delete_menu_confirm', 5),
       'type' => MENU_CALLBACK,
       'file' => 'includes/admin.inc',
       'access arguments' => $admin_access,
@@ -124,7 +124,7 @@ function muchomenu_block_info() {
   if (!empty($menus)) {
     foreach ($menus as $id => $title) {
       $blocks[$id]['info'] = check_plain($title);
-      $blocks[$id]['cache'] = BLOCK_NO_CACHE;
+      $blocks[$id]['cache'] = DRUPAL_NO_CACHE;
     }
   }
   return $blocks;

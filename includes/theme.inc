@@ -198,7 +198,7 @@ function template_preprocess_muchomenu_overview_form(&$variables) {
       $row['class'][] = 'draggable';
       $rows[] = $row;
     } else {
-      $variables['extra_fields'] .= drupal_render($variables['form'][$id]);
+      $variables['extra_fields'] = isset($variables['extra_fields']) ? $variables['extra_fields'] . drupal_render($variables['form'][$id]) : drupal_render($variables['form'][$id]);
     }
   }
 

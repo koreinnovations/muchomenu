@@ -15,14 +15,16 @@ function muchomenu_overview_page() {
   $result = db_query($sql);
   $content = array();
   foreach ($result as $menu) {
-    $menu->href = 'admin/structure/menu/muchomenu-customize/' . $menu->id;
+    $menu->href = 'admin/structure/menu/muchomenu/muchomenu-customize/' . $menu->id;
     $menu->localized_options = array();
     $menu->description = filter_xss_admin($menu->description);
     $content[] = (array) $menu;
   }
   if (empty($content)) {
     $content[] = array(
-        'description' => t('There are no muchomenus yet.'),
+        'title' => 'Add a MuchoMenu',
+        'href' => 'admin/structure/menu/muchomenu/add',
+        'description' => '<strong>' . t('There are no MuchoMenus yet.') .'</strong>',
         'localized_options' => array()
     );
   }
@@ -54,9 +56,14 @@ function muchomenu_overview_form($form, &$form_state, $menu = array()) {
     );
   }
   else {
-    $form['empty_menu'] = array('#value' => t('There are no muchomenu items yet.'));
+    $form['empty_menu'] = array(
+      '#markup' => t('There are no MuchoMenu items yet. <br />!addlink', array(
+        '!addlink' => l('Add a MuchoMenu item', 'admin/structure/menu/muchomenu/muchomenu-customize/' . $menu['id'] . '/add'),
+      )),
+    );
   }
 
+  drupal_set_title($menu['title']);
   return $form;
 }
 
@@ -180,17 +187,17 @@ function muchomenu_edit_menu($form, &$form_state, $type, $menu = array()) {
     $menu = array('title' => '', 'description' => '', 'orientation' => 'horizontal');
     $form['#insert'] = TRUE;
   }
-  $form['#title'] = $menu['title'];
+  $form['#title'] = isset($menu['title']) ? $menu['title'] : t('MuchoMenu');
   $form['title'] = array(
       '#type' => 'textfield',
       '#title' => t('Title'),
-      '#default_value' => $menu['title'],
+      '#default_value' => isset($menu['title']) ? $menu['title'] : '',
       '#required' => TRUE,
   );
   $form['description'] = array(
       '#type' => 'textarea',
       '#title' => t('Description'),
-      '#default_value' => $menu['description'],
+      '#default_value' => isset($menu['description']) ? $menu['description'] : '',
   );
   $form['orientation'] = array(
       '#type' => 'radios',
@@ -199,7 +206,7 @@ function muchomenu_edit_menu($form, &$form_state, $type, $menu = array()) {
           'horizontal' => t('Horizontal'),
           'vertical' => t('Vertical'),
       ),
-      '#default_value' => $menu['orientation'],
+      '#default_value' => isset($menu['orientation']) ? $menu['orientation'] : 'horizontal',
       '#description' => t('Select whether the menu will extend horizontally and drop down, or if it will extend vertically and fly out.'),
   );
   $form['animation_effect'] = array(
@@ -210,22 +217,25 @@ function muchomenu_edit_menu($form, &$form_state, $type, $menu = array()) {
           'fade' => t('Fade'),
           'slide' => t('Slide'),
       ),
-      '#default_value' => $menu['animation_effect'],
+      '#default_value' => isset($menu['animation_effect']) ? $menu['animation_effect'] : '',
       '#description' => t('Choose the effect to use when showing or hiding the menu'),
   );
-  /*
-    $form['animation_speed'] = array(
+  $form['animation_speed'] = array(
     '#type' => 'select',
     '#title' => t('Animation Speed'),
     '#options' => array(
-    'slow' => t('Slow'),
-    'fast' => t('Fast'),
+      'slow' => t('Slow'),
+      'fast' => t('Fast'),
     ),
-    '#default_value' => $menu['animation_speed'],
+    '#default_value' => isset($menu['animation_speed']) ? $menu['animation_speed'] : 'slow',
     '#description' => t('Choose the speed at which to show the effect'),
-    );
+    '#states' => array(
+      'invisible' => array(
+        'select[name=animation_effect]' => array('value' => ''),
+      ),
+    ),
+   );
 
-   */
   $form['submit'] = array(
       '#type' => 'submit',
       '#value' => t('Save'),
@@ -239,11 +249,11 @@ function muchomenu_edit_menu($form, &$form_state, $type, $menu = array()) {
  */
 function muchomenu_edit_menu_submit($form, &$form_state) {
   $menu = $form_state['values'];
-  $path = 'admin/structure/menu/muchomenu-customize/';
+  $path = 'admin/structure/menu/muchomenu/muchomenu-customize/';
 
   if ($form['#insert']) {
     $obj = new stdClass();
-    $key = NULL;
+    $key = array();
   }
   else {
     $obj = (object) muchomenu_load($menu['id']);
@@ -269,7 +279,7 @@ function muchomenu_edit_menu_submit($form, &$form_state) {
  * Submit function for the 'Delete' button on the menu editing form.
  */
 function muchomenu_delete_menu_submit($form, &$form_state) {
-  $form_state['redirect'] = 'admin/structure/menu/muchomenu-customize/' . $form_state['values']['id'] . '/delete';
+  $form_state['redirect'] = 'admin/structure/menu/muchomenu/muchomenu-customize/' . $form_state['values']['id'] . '/delete';
 }
 
 /**
@@ -278,7 +288,7 @@ function muchomenu_delete_menu_submit($form, &$form_state) {
 function muchomenu_delete_menu_confirm($form, &$form_state, $menu) {
   $form['#menu'] = $menu;
   $caption = '<p>' . t('This action cannot be undone.') . '</p>';
-  return confirm_form($form, t('Are you sure you want to delete the muchomenu %title?', array('%title' => $menu['title'])), 'admin/structure/menu/muchomenu-customize/' . $menu['id'], $caption, t('Delete'));
+  return confirm_form($form, t('Are you sure you want to delete the muchomenu %title?', array('%title' => $menu['title'])), 'admin/structure/menu/muchomenu/muchomenu-customize/' . $menu['id'], $caption, t('Delete'));
 }
 
 /**
@@ -349,6 +359,9 @@ function muchomenu_edit_item($form, &$form_state, $type, $item, $menu) {
         '#weight' => 10,
     );
   }
+  if (!isset($item['type'])) {
+    $item['type'] = $type;
+  }
   foreach (array('id', 'menu_id', 'title', 'path', 'panel_name', 'alt', 'enabled', 'type', 'weight') as $key) {
     $form['menu'][$key] = array('#type' => 'value', '#value' => $item[$key]);
   }
@@ -356,7 +369,7 @@ function muchomenu_edit_item($form, &$form_state, $type, $item, $menu) {
   $form['menu']['title'] = array(
       '#type' => 'textfield',
       '#title' => t('Title'),
-      '#default_value' => $item['title'],
+      '#default_value' => isset($item['title']) ? $item['title'] : '',
       '#description' => t('The name of the menu item (displayed when hovering over a menu image).'),
       '#required' => TRUE,
       '#weight' => -10,
@@ -367,42 +380,42 @@ function muchomenu_edit_item($form, &$form_state, $type, $item, $menu) {
       '#title' => t('Panel'),
       '#description' => t('Select a mini panel.'),
       '#options' => $pane_options,
-      '#default_value' => $item['panel_name'],
+      '#default_value' => isset($item['panel_name']) ? $item['panel_name'] : '',
       '#weight' => -8,
   );
 
   $form['menu']['path'] = array(
       '#type' => 'textfield',
       '#title' => t('Path'),
-      '#default_value' => $item['path'],
+      '#default_value' => isset($item['path']) ? $item['path'] : '',
       '#description' => t('The path this menu item links to. This can be an internal Drupal path such as %add-node or an external URL such as %drupal. Enter %front to link to the front page.', array('%front' => '<front>', '%add-node' => 'node/add', '%drupal' => 'http://drupal.org')),
       '#weight' => -7,
   );
   $form['menu']['alt'] = array(
       '#type' => 'textfield',
       '#title' => t('Description'),
-      '#default_value' => $item['alt'],
+      '#default_value' => isset($item['alt']) ? $item['alt'] : '',
       '#description' => t('The ALT tag for the image if its not displayed.'),
       '#weight' => -6,
   );
   $form['menu']['enabled'] = array(
       '#type' => 'checkbox',
       '#title' => t('Enabled'),
-      '#default_value' => ($item['enabled'] ? 1 : 0),
+      '#default_value' => (isset($item['enabled']) && $item['enabled'] == TRUE) ? 1 : 0,
       '#description' => t('Menu items that are not enabled will not be listed in any menu.'),
       '#weight' => -5,
   );
   $form['menu']['target'] = array(
       '#type' => 'checkbox',
       '#title' => t('Open in New Window'),
-      '#default_value' => ($item['target'] ? 1 : 0),
+      '#default_value' => (isset($item['target']) && $item['target'] == TRUE) ? 1 : 0,
       '#description' => t('If checked, this link will open in a new window.'),
       '#weight' => -5,
   );
   $form['menu']['disable_click'] = array(
       '#type' => 'checkbox',
       '#title' => t('Disable Click'),
-      '#default_value' => ($item['disable_click'] ? 1 : 0),
+      '#default_value' => (isset($item['disable_click']) && $item['disable_click'] == TRUE) ? 1 : 0,
       '#description' => t('Disable clicking directly on this menu item.  Use this to force people to use the flyout menu'),
       '#weight' => -5,
   );
@@ -413,13 +426,12 @@ function muchomenu_edit_item($form, &$form_state, $type, $item, $menu) {
       '#type' => 'weight',
       '#title' => t('Weight'),
       '#delta' => 50,
-      '#default_value' => $item['weight'],
+      '#default_value' => isset($item['weight']) ? $item['weight'] : 0,
       '#description' => t('Optional. In the menu, the heavier items will sink and the lighter items will be positioned nearer the top.'),
       '#weight' => -2,
   );
 
   $form['submit'] = array('#type' => 'submit', '#value' => t('Save'));
-
   return $form;
 }
 
@@ -486,7 +498,7 @@ function muchomenu_edit_item_submit($form, &$form_state) {
     watchdog('muchomenu', 'Updated muchomenu menu item %title', $t_args, WATCHDOG_NOTICE);
   }
 
-  $form_state['redirect'] = 'admin/structure/menu/muchomenu-customize/' . $item['menu_id'];
+  $form_state['redirect'] = 'admin/structure/menu/muchomenu/muchomenu-customize/' . $item['menu_id'];
 }
 
 /**
@@ -502,7 +514,7 @@ function muchomenu_item_delete_submit($form, &$form_state) {
 function muchomenu_item_delete_form($form, &$form_state, $item) {
   $form['#item'] = $item;
   $menu_id = muchomenu_item_get_menu_id($item);
-  return confirm_form($form, t('Are you sure you want to delete the muchomenu item %item?', array('%item' => $item['title'])), 'admin/structure/menu/muchomenu-customize/' . $menu_id);
+  return confirm_form($form, t('Are you sure you want to delete the muchomenu item %item?', array('%item' => $item['title'])), 'admin/structure/menu/muchomenu/muchomenu-customize/' . $menu_id);
 }
 
 /**
@@ -518,7 +530,7 @@ function muchomenu_item_delete_form_submit($form, &$form_state) {
           ->execute();
   drupal_set_message(t('The muchomenu item %title has been deleted.', array('%title' => $item['title'])));
   watchdog('menu', 'Deleted muchomenu item %title.', array('%title' => $item['title']), WATCHDOG_NOTICE);
-  $form_state['redirect'] = 'admin/structure/menu/muchomenu-customize/' . $menu_id;
+  $form_state['redirect'] = 'admin/structure/menu/muchomenu/muchomenu-customize/' . $menu_id;
 }
 
 /**
